@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>DLSM Interactive Visualization</title>
+	<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+	<style>
+		:root {
+			--bg: #0f1115;
+			--panel: #171a21;
+			--text: #e6e6e6;
+			--muted: #9aa0a6;
+			--accent: #4da3ff;
+			--border: #2a2f3a;
+			--header-bg: #0c0e12;
+			--input-bg: #10131a;
+			--secondary-bg: #2a2f3a;
+			--details-bg: #12151c;
+			--pill-bg: #273145;
+			--pill-text: #cfe6ff;
+			--pre-text: #d7d7d7;
+			--content-max-width: 1440px;
+		}
+		body {
+			margin: 0;
+			font-family: "Segoe UI", Arial, sans-serif;
+			background: var(--bg);
+			color: var(--text);
+		}
+		header {
+			padding: 16px 24px;
+			border-bottom: 1px solid var(--border);
+			background: var(--header-bg);
+		}
+		.header-inner {
+			max-width: var(--content-max-width);
+			margin: 0 auto;
+		}
+		h1 {
+			margin: 0;
+			font-size: 20px;
+			font-weight: 600;
+		}
+		.container {
+			padding: 16px 24px 40px;
+			max-width: var(--content-max-width);
+			margin: 0 auto;
+		}
+		.card {
+			background: var(--panel);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			padding: 12px 16px;
+			margin-bottom: 16px;
+		}
+		.row {
+			display: flex;
+			gap: 16px;
+			flex-wrap: wrap;
+			align-items: flex-end;
+		}
+		.row > * {
+			flex: 1 1 280px;
+			min-width: 220px;
+		}
+		.row .row {
+			gap: 8px;
+		}
+		.grid-2 {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 16px;
+		}
+		@media (max-width: 1200px) {
+			.grid-2 { grid-template-columns: 1fr; }
+		}
+		label {
+			display: block;
+			font-size: 12px;
+			color: var(--muted);
+			margin-bottom: 6px;
+		}
+		input, select, button {
+			width: 100%;
+			padding: 8px 10px;
+			border-radius: 8px;
+			border: 1px solid var(--border);
+			background: var(--input-bg);
+			color: var(--text);
+			outline: none;
+		}
+		button {
+			background: var(--accent);
+			border: none;
+			cursor: pointer;
+			font-weight: 600;
+		}
+		button.secondary {
+			background: var(--secondary-bg);
+			color: var(--text);
+			border: 1px solid var(--border);
+		}
+		.muted {
+			color: var(--muted);
+			font-size: 12px;
+		}
+		details {
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			padding: 8px 12px;
+			margin: 8px 0;
+			background: var(--details-bg);
+		}
+		summary {
+			cursor: pointer;
+			font-weight: 600;
+		}
+		pre {
+			white-space: pre-wrap;
+			word-break: break-word;
+			font-size: 12px;
+			color: var(--pre-text);
+		}
+		.table-wrap {
+			max-height: 360px;
+			overflow: auto;
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			margin-top: 8px;
+		}
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 12px;
+		}
+		th, td {
+			padding: 6px 8px;
+			border-bottom: 1px solid var(--border);
+			text-align: right;
+			white-space: nowrap;
+		}
+		th:first-child, td:first-child,
+		th:nth-child(2), td:nth-child(2) {
+			text-align: left;
+		}
+		.pill {
+			display: inline-block;
+			padding: 2px 8px;
+			border-radius: 999px;
+			background: var(--pill-bg);
+			color: var(--pill-text);
+			margin-right: 6px;
+			margin-bottom: 6px;
+			font-size: 12px;
+		}
+		.plot {
+			width: 100%;
+			height: 420px;
+		}
+		.plot.tall { height: 770px; }
+	</style>
+</head>
+<body>
+	<header>
+		<div class="header-inner">
+			<h1>DLSM Interactive Visualization</h1>
+		</div>
+	</header>
+	<div class="container">
+		<div class="card">
+			<div class="row">
+				<div>
+					<label>테마</label>
+					<button id="themeToggle" class="secondary">라이트 모드</button>
+				</div>
+				<div>
+					<label>공통 CI 레벨</label>
+					<select id="ciGlobal">
+						<option value="80">80%</option>
+						<option value="90" selected>90%</option>
+						<option value="95">95%</option>
+					</select>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<div class="row">
+				<div>
+					<label>데이터셋 선택</label>
+					<select id="datasetSelect"></select>
+				</div>
+				<div style="align-self:end">
+					<button id="btnLoad">Load</button>
+				</div>
+			</div>
+			<div id="loadStatus" class="muted"></div>
+		</div>
+
+		<div class="card" id="metaCard">
+			<h3>메타데이터</h3>
+			<div id="metaSummary" class="muted"></div>
+			<details>
+				<summary>meta</summary>
+				<pre id="metaJson"></pre>
+			</details>
+			<details>
+				<summary>trade</summary>
+				<pre id="tradeJson"></pre>
+			</details>
+			<details>
+				<summary>dlsm</summary>
+				<pre id="dlsmJson"></pre>
+			</details>
+			<details>
+				<summary>plots</summary>
+				<pre id="plotsJson"></pre>
+			</details>
+		</div>
+
+		<div class="card" id="countryCard">
+			<h3>국가 선택기</h3>
+			<div class="row">
+				<div>
+					<label>정렬 기준</label>
+					<select id="sortKey"></select>
+				</div>
+				<div>
+					<label>정렬 방향</label>
+					<select id="sortDir">
+						<option value="desc">내림차순</option>
+						<option value="asc">오름차순</option>
+					</select>
+				</div>
+				<div>
+					<label>선택 국가 표시</label>
+					<div id="selectedCountries"></div>
+				</div>
+			</div>
+			<div class="table-wrap">
+				<table id="countryTable"></table>
+			</div>
+		</div>
+
+		<div class="card">
+			<h3>무역량 시각화</h3>
+			<div class="row">
+				<div>
+					<label>무역 지표</label>
+					<select id="tradeMetric"></select>
+				</div>
+			</div>
+			<div id="tradeStacked" class="plot"></div>
+		</div>
+
+		<div class="card">
+			<h3>Radius 시간별 변화 (선택 국가)</h3>
+			<div class="row">
+				<div>
+					<label>표시 대상</label>
+					<select id="radiusScope">
+						<option value="selected" selected>선택 국가</option>
+						<option value="all">전체 국가</option>
+					</select>
+				</div>
+				<div>
+					<label>CI 표시</label>
+					<select id="radiusShowCi">
+						<option value="false">끄기</option>
+						<option value="true" selected>켜기</option>
+					</select>
+				</div>
+				<div>
+					<label>CI 레벨 (공통 설정 사용)</label>
+					<select id="radiusCi" disabled>
+						<option value="80">80%</option>
+						<option value="90" selected>90%</option>
+						<option value="95">95%</option>
+					</select>
+				</div>
+			</div>
+			<div class="row">
+				<div id="radiusEvolutionIn" class="plot"></div>
+				<div id="radiusEvolutionOut" class="plot"></div>
+			</div>
+		</div>
+
+		<div class="card">
+			<h3>Radius Stacked Bar</h3>
+			<div class="row">
+				<div>
+					<label>집계 기준</label>
+					<select id="radiusStackMode">
+						<option value="continent">대륙 합산</option>
+						<option value="country">국가 합산</option>
+					</select>
+				</div>
+				<div>
+					<label>국가 합산 색상</label>
+					<select id="radiusStackColorMode">
+						<option value="country" selected>국가별 색상</option>
+						<option value="continent">대륙별 색상</option>
+					</select>
+				</div>
+				<div>
+					<label>Radius 타입</label>
+					<select id="radiusStackType">
+						<option value="radius_out_mean">Radius Out</option>
+						<option value="radius_in_mean">Radius In</option>
+					</select>
+				</div>
+			</div>
+			<div id="radiusStacked" class="plot"></div>
+		</div>
+
+		<div class="card">
+			<h3>Latent Position</h3>
+			<div class="row">
+				<div>
+					<label>선택 국가만 색/라벨</label>
+					<select id="posHighlightSelected">
+						<option value="true" selected>선택만 강조</option>
+						<option value="false">전체 대륙색</option>
+					</select>
+				</div>
+				<div>
+					<label>선택 국가만 표시</label>
+					<select id="posOnlySelected">
+						<option value="false">전체 표시</option>
+						<option value="true">선택 국가만</option>
+					</select>
+				</div>
+				<div>
+					<label>라벨 표시</label>
+					<select id="posLabelSelectedOnly">
+						<option value="true" selected>선택 국가만</option>
+						<option value="false">전체 표시</option>
+					</select>
+				</div>
+				<div>
+					<label>Radius를 점 크기로 표시</label>
+					<select id="posRadiusSize">
+						<option value="off">끄기</option>
+						<option value="in">IN으로 표시</option>
+						<option value="out" selected>OUT으로 표시</option>
+						<option value="avg">IN-OUT 평균</option>
+					</select>
+				</div>
+			</div>
+			<div class="row">
+				<div>
+					<label>Radius Scale (1~10000)</label>
+					<input id="posRadiusScale" type="number" min="1" max="10000" value="100" />
+				</div>
+				<div>
+					<label>점 크기</label>
+					<input id="posPointSize" type="number" min="1" max="10" value="3" />
+				</div>
+				<div>
+					<label>축 범위 (min/max)</label>
+					<div class="row">
+						<input id="posAxisMin" value="-1" />
+						<input id="posAxisMax" value="1" />
+					</div>
+				</div>
+				<div>
+					<label>보기 설정</label>
+					<div class="row">
+						<button id="posViewReset" class="secondary">Reset view</button>
+						<button id="posViewXY" class="secondary">View XY</button>
+						<button id="posViewXZ" class="secondary">View XZ</button>
+						<button id="posViewYZ" class="secondary">View YZ</button>
+					</div>
+				</div>
+			</div>
+			<div id="positionPlot" class="plot tall"></div>
+			<div class="muted" id="positionWarn"></div>
+		</div>
+
+		<div class="card">
+			<h3>Latent Position + Radius (2D)</h3>
+			<div class="row">
+				<div>
+					<label>선택 국가만 색/라벨</label>
+					<select id="posRHighlightSelected">
+						<option value="true" selected>선택만 강조</option>
+						<option value="false">전체 대륙색</option>
+					</select>
+				</div>
+				<div>
+					<label>Radius 표시 범위</label>
+					<select id="posRRadiusScope">
+						<option value="all">전체 국가</option>
+						<option value="selected" selected>선택 국가만</option>
+					</select>
+				</div>
+				<div>
+					<label>라벨 표시</label>
+					<select id="posRLabelSelectedOnly">
+						<option value="true" selected>선택 국가만</option>
+						<option value="false">전체 표시</option>
+					</select>
+				</div>
+				<div>
+					<label>Radius 타입</label>
+					<select id="posRRadiusMode">
+						<option value="in">IN</option>
+						<option value="out" selected>OUT</option>
+						<option value="avg">IN-OUT 평균</option>
+					</select>
+				</div>
+				<div>
+					<label>Radius Scale (1~10000)</label>
+					<input id="posRRadiusScale" type="number" min="1" max="10000" value="100" />
+				</div>
+			</div>
+			<div class="row">
+				<div>
+					<label>점 크기</label>
+					<input id="posRPointSize" type="number" min="2" max="30" value="6" />
+				</div>
+				<div>
+					<label>축 범위 (min/max)</label>
+					<div class="row">
+						<input id="posRAxisMin" value="-1" />
+						<input id="posRAxisMax" value="1" />
+					</div>
+				</div>
+				<div>
+					<label>보기 설정</label>
+					<div class="row">
+						<button id="posRViewReset" class="secondary">Reset view</button>
+						<button id="posRViewXY" class="secondary">View XY</button>
+						<button id="posRViewXZ" class="secondary">View XZ</button>
+						<button id="posRViewZY" class="secondary">View ZY</button>
+					</div>
+				</div>
+			</div>
+			<div id="positionRadiusPlot" class="plot" style="width: 800px; height: 800px; margin: 0 auto;"></div>
+			<div class="muted" id="positionRadiusWarn">2D 전용 (latent_dim=2일 때 권장)</div>
+		</div>
+
+		<div class="card">
+			<h3>전역 지표</h3>
+			<div class="row">
+				<div>
+					<label>CI 레벨 (공통 설정 사용)</label>
+					<select id="globalCi" disabled>
+						<option value="80">80%</option>
+						<option value="90" selected>90%</option>
+						<option value="95">95%</option>
+					</select>
+				</div>
+			</div>
+			<div class="grid-2">
+				<div id="globalGciPlot" class="plot"></div>
+				<div id="globalDistanceMeanPlot" class="plot"></div>
+				<div id="globalDistanceVarPlot" class="plot"></div>
+			</div>
+		</div>
+
+		<div class="card">
+			<h3>국가 단위 지표 (선택 국가)</h3>
+			<div class="row">
+				<div>
+					<label>CI 레벨 (공통 설정 사용)</label>
+					<select id="localCi" disabled>
+						<option value="80">80%</option>
+						<option value="90" selected>90%</option>
+						<option value="95">95%</option>
+					</select>
+				</div>
+			</div>
+			<div class="grid-2">
+				<div id="localBdiOutPlot" class="plot"></div>
+				<div id="localBdiInPlot" class="plot"></div>
+				<div id="localGiiPlot" class="plot"></div>
+				<div id="localReachInPlot" class="plot"></div>
+				<div id="localReachOutPlot" class="plot"></div>
+				<div id="localDbarPlot" class="plot"></div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// JSON 파일 목록은 json_files.txt에서 로드
+		let JSON_FILES = [];
+		const JSON_BASE_PATH = "json/";
+		const JSON_FILES_PATH = "json_files.txt";
+
+		async function loadJsonFileList() {
+			try {
+				const response = await fetch(JSON_FILES_PATH);
+				if (!response.ok) {
+					throw new Error(`Failed to load ${JSON_FILES_PATH}`);
+				}
+				const text = await response.text();
+				JSON_FILES = text.split('\n')
+					.map(line => line.trim())
+					.filter(line => line.length > 0 && line.endsWith('.json'))
+					.sort();
+				return JSON_FILES;
+			} catch (error) {
+				console.error("Error loading JSON file list:", error);
+				setStatus(`Error: ${error.message}`);
+				return [];
+			}
+		}
+
+		let DATA = null;
+		let selected = new Set();
+		let colorMap = new Map();
+		let lastCamera = null;
+		let posRViewMode = "xy";
+
+		const DEFAULT_SELECTED_SPECS = [
+			{ label: "China", tokens: ["China", "CHN"] },
+			{ label: "United States", tokens: ["United States", "USA", "United States of America"] },
+			{ label: "Vietnam", tokens: ["Vietnam", "Viet Nam", "VNM"] },
+			{ label: "Taiwan", tokens: ["Taiwan", "TWN"] },
+			{ label: "Germany", tokens: ["Germany", "DEU"] },
+			{ label: "Korea", tokens: ["Korea", "Republic of Korea", "KOR", "South Korea"] },
+			{ label: "Mexico", tokens: ["Mexico", "MEX"] },
+			{ label: "Japan", tokens: ["Japan", "JPN"] },
+			{ label: "Singapore", tokens: ["Singapore", "SGP"] },
+			{ label: "Malaysia", tokens: ["Malaysia", "MYS"] },
+		];
+
+		function normalizeCountryToken(s) {
+			return String(s || "")
+				.toLowerCase()
+				.replace(/\s+/g, " ")
+				.trim();
+		}
+
+		function findCountryByToken(candidates, token) {
+			const t = normalizeCountryToken(token);
+			if (!t) return null;
+			// 1) exact match (case-insensitive)
+			for (const c of candidates) {
+				if (normalizeCountryToken(c) === t) return c;
+			}
+			// 2) code in parentheses e.g. China(CHN)
+			const code = String(token || "").toUpperCase().trim();
+			if (code.length === 3) {
+				const re = new RegExp(`\\(${code}\\)`, "i");
+				for (const c of candidates) {
+					if (re.test(String(c))) return c;
+				}
+			}
+			// 3) substring fallback
+			for (const c of candidates) {
+				if (normalizeCountryToken(c).includes(t)) return c;
+			}
+			return null;
+		}
+
+		function seedDefaultSelection() {
+			if (!DATA) return;
+			const candidates = (DATA.trade && Array.isArray(DATA.trade.country_totals))
+				? DATA.trade.country_totals.map(r => r.country)
+				: (DATA.meta && Array.isArray(DATA.meta.countries) ? DATA.meta.countries : []);
+			DEFAULT_SELECTED_SPECS.forEach(spec => {
+				let match = null;
+				for (const tok of spec.tokens) {
+					match = findCountryByToken(candidates, tok);
+					if (match) break;
+				}
+				if (match) selected.add(match);
+			});
+		}
+
+		const palette = [
+			"#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
+			"#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ab",
+			"#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd",
+		];
+
+		function hashColor(key) {
+			let h = 0;
+			for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+			return palette[h % palette.length];
+		}
+
+		function getLayoutTheme() {
+			const isLight = document.body.dataset.theme === "light";
+			return {
+				paper_bgcolor: isLight ? "#ffffff" : "#171a21",
+				plot_bgcolor: isLight ? "#ffffff" : "#171a21",
+				font: { color: isLight ? "#111827" : "#e6e6e6" }
+			};
+		}
+
+		function setStatus(msg) {
+			document.getElementById("loadStatus").textContent = msg;
+		}
+
+		function renderJsonPanels() {
+			document.getElementById("metaJson").textContent = JSON.stringify(DATA.meta, null, 2);
+			document.getElementById("tradeJson").textContent = JSON.stringify(DATA.trade, null, 2);
+			document.getElementById("dlsmJson").textContent = JSON.stringify(DATA.dlsm, null, 2);
+			document.getElementById("plotsJson").textContent = JSON.stringify(DATA.plots, null, 2);
+
+			const meta = DATA.meta;
+			document.getElementById("metaSummary").textContent =
+				`dataset=${meta.dataset_key}, years=${meta.years[0]}~${meta.years[meta.years.length-1]}, countries=${meta.countries.length}, latent_dim=${meta.latent_dim}`;
+		}
+
+		function buildColorMap(countries) {
+			colorMap = new Map();
+			countries.forEach(c => colorMap.set(c, hashColor(c)));
+		}
+
+		function renderCountrySelector() {
+			const totals = DATA.trade.country_totals;
+			const sortKeyEl = document.getElementById("sortKey");
+			const metricKeys = Object.keys(totals[0]).filter(k => k.endsWith("_total"));
+			sortKeyEl.innerHTML = metricKeys.map(k => `<option value="${k}">${k}</option>`).join("");
+
+			function drawTable() {
+				const sortKey = sortKeyEl.value;
+				const sortDir = document.getElementById("sortDir").value;
+				const rows = [...totals].sort((a, b) => {
+					const av = a[sortKey] || 0;
+					const bv = b[sortKey] || 0;
+					return sortDir === "asc" ? av - bv : bv - av;
+				});
+
+				const headers = ["select", "country", "continent", ...metricKeys];
+				let html = "<thead><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr></thead><tbody>";
+				rows.forEach(r => {
+					const checked = selected.has(r.country) ? "checked" : "";
+					html += "<tr>";
+					html += `<td><input type="checkbox" data-country="${r.country}" ${checked} /></td>`;
+					html += `<td>${r.country}</td>`;
+					html += `<td>${r.continent}</td>`;
+					metricKeys.forEach(k => {
+						html += `<td>${(r[k] || 0).toFixed(2)}</td>`;
+					});
+					html += "</tr>";
+				});
+				html += "</tbody>";
+				const table = document.getElementById("countryTable");
+				table.innerHTML = html;
+
+				table.querySelectorAll("input[type=checkbox]").forEach(cb => {
+					cb.addEventListener("change", e => {
+						const c = e.target.dataset.country;
+						if (e.target.checked) selected.add(c); else selected.delete(c);
+						renderSelectedPills();
+						renderAllPlots();
+					});
+				});
+			}
+
+			sortKeyEl.addEventListener("change", drawTable);
+			document.getElementById("sortDir").addEventListener("change", drawTable);
+			drawTable();
+		}
+
+		function renderSelectedPills() {
+			const container = document.getElementById("selectedCountries");
+			const list = [...selected];
+			container.innerHTML = list.length === 0 ? "<span class='muted'>선택된 국가 없음</span>" :
+				list.map(c => `<span class='pill' style='background:${colorMap.get(c)}33;border:1px solid ${colorMap.get(c)}'>${c}</span>`).join("");
+		}
+
+		function renderTradeStacked() {
+			const metric = document.getElementById("tradeMetric").value;
+			if (!metric) return;
+			const rows = DATA.trade.by_year_continent;
+			const years = [...new Set(rows.map(r => r.year))].sort((a,b)=>a-b);
+			const continents = [...new Set(rows.map(r => r.continent))];
+			const traces = continents.map(cont => {
+				const vals = years.map(y => {
+					const found = rows.find(r => r.year === y && r.continent === cont);
+					return found ? found[metric] : 0;
+				});
+				return {
+					type: "bar",
+					name: cont,
+					x: years,
+					y: vals,
+					hovertemplate: `continent=${cont}<br>year=%{x}<br>${metric}=%{y:.2f}<extra></extra>`
+				};
+			});
+			Plotly.newPlot("tradeStacked", traces, {
+				barmode: "stack",
+				margin: { t: 30, r: 10, l: 50, b: 60 },
+				title: `Trade volume by continent (${metric})`,
+				...getLayoutTheme()
+			}, {responsive: true});
+		}
+
+		function renderRadiusEvolution() {
+			const scope = document.getElementById("radiusScope").value;
+			const showCi = document.getElementById("radiusShowCi").value === "true";
+			const ci = document.getElementById("ciGlobal").value;
+			const rows = DATA.dlsm.radius;
+			const years = DATA.meta.years;
+			const countries = scope === "all" ? DATA.meta.countries : [...selected];
+
+			const makeTraces = (metric) => {
+				const traces = [];
+				countries.forEach(c => {
+					const vals = years.map(y => {
+						const r = rows.find(d => d.year === y && d.country === c);
+						return r ? r[metric] : null;
+					});
+					traces.push({
+						type: "scatter",
+						mode: "lines",
+						name: c,
+						x: years,
+						y: vals,
+						line: { color: colorMap.get(c) },
+						hovertemplate: `country=${c}<br>year=%{x}<br>${metric}=%{y:.3f}<extra></extra>`
+					});
+
+					if (showCi) {
+						const lo = years.map(y => {
+							const r = rows.find(d => d.year === y && d.country === c);
+							return r ? r[`${metric.replace("_mean", "")}_ci${ci}_lo`] : null;
+						});
+						const hi = years.map(y => {
+							const r = rows.find(d => d.year === y && d.country === c);
+							return r ? r[`${metric.replace("_mean", "")}_ci${ci}_hi`] : null;
+						});
+						traces.push({ type: "scatter", mode: "lines", x: years, y: lo, line: { width: 0 }, showlegend: false, hoverinfo: "skip" });
+						traces.push({ type: "scatter", mode: "lines", x: years, y: hi, line: { width: 0 }, fill: "tonexty", fillcolor: (colorMap.get(c) || "#999") + "22", showlegend: false, hoverinfo: "skip" });
+					}
+				});
+				return traces;
+			};
+
+			const layoutBase = (title) => ({
+				margin: { t: 30, r: 10, l: 50, b: 60 },
+				title,
+				...getLayoutTheme()
+			});
+
+			Plotly.newPlot("radiusEvolutionIn", makeTraces("radius_in_mean"), layoutBase("Radius In"), {responsive: true});
+			Plotly.newPlot("radiusEvolutionOut", makeTraces("radius_out_mean"), layoutBase("Radius Out"), {responsive: true});
+		}
+
+		function renderRadiusStacked() {
+			const mode = document.getElementById("radiusStackMode").value;
+			const colorMode = document.getElementById("radiusStackColorMode").value;
+			const metric = document.getElementById("radiusStackType").value;
+			const rows = DATA.dlsm.radius;
+			const years = DATA.meta.years;
+
+			if (mode === "continent") {
+				const groups = DATA.dlsm.continent_list;
+				const traces = groups.map(cont => {
+					const vals = years.map(y => {
+						const subset = rows.filter(r => r.year === y && DATA.dlsm.continent_map[r.country] === cont);
+						return subset.reduce((s, r) => s + (r[metric] || 0), 0);
+					});
+					return {
+						type: "bar",
+						name: cont,
+						x: years,
+						y: vals,
+						hovertemplate: `continent=${cont}<br>year=%{x}<br>${metric}=%{y:.3f}<extra></extra>`
+					};
+				});
+				Plotly.newPlot("radiusStacked", traces, {
+					barmode: "stack",
+					margin: { t: 30, r: 10, l: 50, b: 60 },
+					title: `Radius stacked by continent (${metric})`,
+					...getLayoutTheme()
+				}, {responsive: true});
+			} else {
+				const countries = DATA.meta.countries;
+				const traces = countries.map(c => {
+					const vals = years.map(y => {
+						const r = rows.find(d => d.year === y && d.country === c);
+						return r ? r[metric] : 0;
+					});
+					const cont = DATA.dlsm.continent_map[c] || "Other";
+					const contColor = (DATA.dlsm.continent_palette && DATA.dlsm.continent_palette[cont]) ? DATA.dlsm.continent_palette[cont] : "#7f7f7f";
+					const color = colorMode === "continent" ? contColor : colorMap.get(c);
+					return {
+						type: "bar",
+						name: c,
+						x: years,
+						y: vals,
+						marker: { color },
+						hovertemplate: `country=${c}<br>year=%{x}<br>${metric}=%{y:.3f}<extra></extra>`
+					};
+				});
+				Plotly.newPlot("radiusStacked", traces, {
+					barmode: "stack",
+					margin: { t: 30, r: 10, l: 50, b: 60 },
+					title: `Radius stacked by country (${metric})`,
+					...getLayoutTheme()
+				}, {responsive: true});
+			}
+		}
+
+		function buildPositionFrames() {
+			const onlySelected = document.getElementById("posOnlySelected").value === "true";
+			const radiusSizeMode = document.getElementById("posRadiusSize").value;
+			const radiusScale = Number(document.getElementById("posRadiusScale").value);
+			const pointSize = Number(document.getElementById("posPointSize").value);
+			const highlightSelected = document.getElementById("posHighlightSelected").value === "true";
+			const labelSelectedOnly = document.getElementById("posLabelSelectedOnly").value === "true";
+
+			const positions = DATA.dlsm.positions;
+			const radiusRows = DATA.dlsm.radius;
+			const years = DATA.meta.years;
+			const useCountries = onlySelected ? [...selected] : DATA.meta.countries;
+			const latentDim = DATA.meta.latent_dim;
+			const axisMin = Number(document.getElementById("posAxisMin").value);
+			const axisMax = Number(document.getElementById("posAxisMax").value);
+
+			const is3D = latentDim >= 3;
+			const warn = [];
+			if (latentDim > 3) warn.push("경고: latent_dim > 3 이므로 1~3차원만 표시합니다.");
+			document.getElementById("positionWarn").textContent = warn.join(" ");
+
+			const frames = years.map(y => {
+				const points = positions.filter(p => p.year === y && useCountries.includes(p.country));
+				const xs = points.map(p => p.x);
+				const ys = points.map(p => p.y);
+				const zs = points.map(p => p.z);
+				const text = points.map(p => p.country);
+				const colors = points.map(p => {
+					const cont = DATA.dlsm.continent_map[p.country] || "Other";
+					const contColor = (DATA.dlsm.continent_palette && DATA.dlsm.continent_palette[cont]) ? DATA.dlsm.continent_palette[cont] : null;
+					const base = contColor || "#7f7f7f";
+					if (!highlightSelected) return base;
+					return selected.has(p.country) ? base : "#7f7f7f";
+				});
+
+				const rmapIn = new Map(radiusRows.filter(r => r.year === y).map(r => [r.country, r.radius_in_mean]));
+				const rmapOut = new Map(radiusRows.filter(r => r.year === y).map(r => [r.country, r.radius_out_mean]));
+				const rin = points.map(p => rmapIn.get(p.country) || 0);
+				const rout = points.map(p => rmapOut.get(p.country) || 0);
+				let marker = { size: pointSize, color: colors, opacity: 0.85 };
+				if (radiusSizeMode !== "off") {
+					const base = radiusSizeMode === "in" ? rin : radiusSizeMode === "out" ? rout : rin.map((v, i) => 0.5 * (v + rout[i]));
+					const sizeRaw = base.map(v => Math.max(0.2, v * radiusScale));
+					const sizeArea = sizeRaw.map(v => v * v);
+					const maxArea = Math.max(...sizeArea, 1);
+					const desiredMax = 22;
+					const sizeref = (2 * maxArea) / (desiredMax * desiredMax);
+					marker = { ...marker, size: sizeArea, sizeref, sizemode: "area", opacity: 0.6 };
+				}
+
+				const traces = [];
+				if (is3D) {
+					traces.push({
+						type: "scatter3d",
+						mode: "markers+text",
+						x: xs, y: ys, z: zs,
+						text: text.map((t, i) => (labelSelectedOnly && !selected.has(t)) ? "" : t),
+						customdata: text.map((t, i) => [t, rin[i], rout[i]]),
+						textposition: "top center",
+						marker,
+						hovertemplate: "country=%{customdata[0]}<br>x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}<br>r_in=%{customdata[1]:.3f}<br>r_out=%{customdata[2]:.3f}<extra></extra>",
+						name: "positions"
+					});
+				} else {
+					traces.push({
+						type: "scatter",
+						mode: "markers+text",
+						x: xs, y: ys,
+						text: text.map((t, i) => (labelSelectedOnly && !selected.has(t)) ? "" : t),
+						customdata: text.map((t, i) => [t, rin[i], rout[i]]),
+						textposition: "top center",
+						marker,
+						hovertemplate: "country=%{customdata[0]}<br>x=%{x:.3f}<br>y=%{y:.3f}<br>r_in=%{customdata[1]:.3f}<br>r_out=%{customdata[2]:.3f}<extra></extra>",
+						name: "positions"
+					});
+				}
+
+				return { name: String(y), data: traces, layout: { xaxis: { range: [axisMin, axisMax] }, yaxis: { range: [axisMin, axisMax] } } };
+			});
+
+			return { frames, is3D };
+		}
+
+		function renderPositionPlot() {
+			const { frames, is3D } = buildPositionFrames();
+			const years = DATA.meta.years;
+			const axisMin = Number(document.getElementById("posAxisMin").value);
+			const axisMax = Number(document.getElementById("posAxisMax").value);
+			const layout = {
+				margin: { t: 30, r: 10, l: 50, b: 60 },
+				title: `Latent positions`,
+				...getLayoutTheme(),
+				sliders: [{
+					active: 0,
+					steps: years.map((y, i) => ({
+						label: String(y),
+						method: "animate",
+						args: [[String(y)], { mode: "immediate", transition: { duration: 0 }, frame: { duration: 0, redraw: true } }]
+					}))
+				}]
+			};
+
+			if (is3D) {
+				layout.scene = {
+					xaxis: { title: "x", range: [axisMin, axisMax] },
+					yaxis: { title: "y", range: [axisMin, axisMax] },
+					zaxis: { title: "z", range: [axisMin, axisMax] }
+				};
+			} else {
+				layout.xaxis = { title: "x", range: [axisMin, axisMax] };
+				layout.yaxis = { title: "y", range: [axisMin, axisMax] };
+			}
+
+			Plotly.newPlot("positionPlot", frames[0].data, layout, {responsive: true}).then(gd => {
+				Plotly.addFrames(gd, frames);
+				gd.on("plotly_relayout", ev => {
+					if (ev["scene.camera"]) lastCamera = ev["scene.camera"]; 
+				});
+			});
+
+			const gd = document.getElementById("positionPlot");
+			gd.on("plotly_animated", () => {
+				if (lastCamera && is3D) {
+					Plotly.relayout(gd, { "scene.camera": lastCamera });
+				}
+			});
+		}
+
+		function buildPositionRadiusFrames() {
+			const radiusScope = document.getElementById("posRRadiusScope").value;
+			const radiusMode = document.getElementById("posRRadiusMode").value;
+			const radiusScale = Number(document.getElementById("posRRadiusScale").value);
+			const pointSize = Number(document.getElementById("posRPointSize").value);
+			const highlightSelected = document.getElementById("posRHighlightSelected").value === "true";
+			const labelSelectedOnly = document.getElementById("posRLabelSelectedOnly").value === "true";
+
+			const positions = DATA.dlsm.positions;
+			const radiusRows = DATA.dlsm.radius;
+			const years = DATA.meta.years;
+			const useCountries = DATA.meta.countries;
+			const axisMin = Number(document.getElementById("posRAxisMin").value);
+			const axisMax = Number(document.getElementById("posRAxisMax").value);
+			const viewMode = posRViewMode;
+
+			const frames = years.map(y => {
+				const points = positions.filter(p => p.year === y && useCountries.includes(p.country));
+				const xs = points.map(p => (viewMode === "zy" ? p.z : p.x));
+				const ys = points.map(p => (viewMode === "xz" ? p.z : viewMode === "zy" ? p.y : p.y));
+				const text = points.map(p => p.country);
+				const colors = points.map(p => {
+					const cont = DATA.dlsm.continent_map[p.country] || "Other";
+					const contColor = (DATA.dlsm.continent_palette && DATA.dlsm.continent_palette[cont]) ? DATA.dlsm.continent_palette[cont] : null;
+					const base = contColor || "#7f7f7f";
+					if (!highlightSelected) return base;
+					return selected.has(p.country) ? base : "#7f7f7f";
+				});
+
+				const rmapIn = new Map(radiusRows.filter(r => r.year === y).map(r => [r.country, r.radius_in_mean]));
+				const rmapOut = new Map(radiusRows.filter(r => r.year === y).map(r => [r.country, r.radius_out_mean]));
+				const rin = points.map(p => rmapIn.get(p.country) || 0);
+				const rout = points.map(p => rmapOut.get(p.country) || 0);
+				const base = radiusMode === "in" ? rin : radiusMode === "out" ? rout : rin.map((v, i) => 0.5 * (v + rout[i]));
+				
+				const sizeDiam = base.map((v, i) => {
+					if (radiusScope === "selected" && !selected.has(points[i].country)) return 0;
+					return Math.max(1, v * radiusScale);
+				});
+
+				const traces = [
+					{
+						type: "scatter",
+						mode: "markers",
+						x: xs,
+						y: ys,
+						marker: {
+							size: sizeDiam,
+							sizemode: "diameter",
+							color: colors,
+							opacity: 0.2,
+							line: { width: 1, color: colors }
+						},
+						customdata: text.map((t, i) => [t, rin[i], rout[i]]),
+						hovertemplate: "country=%{customdata[0]}<br>x=%{x:.3f}<br>y=%{y:.3f}<br>r_in=%{customdata[1]:.3f}<br>r_out=%{customdata[2]:.3f}<extra></extra>",
+						showlegend: false
+					},
+					{
+						type: "scatter",
+						mode: "markers+text",
+						x: xs,
+						y: ys,
+						text: text.map((t, i) => (labelSelectedOnly && !selected.has(t)) ? "" : t),
+						customdata: text.map((t, i) => [t, rin[i], rout[i]]),
+						textposition: "top center",
+						marker: { size: pointSize, color: colors, opacity: 0.85 },
+						hovertemplate: "country=%{customdata[0]}<br>x=%{x:.3f}<br>y=%{y:.3f}<br>r_in=%{customdata[1]:.3f}<br>r_out=%{customdata[2]:.3f}<extra></extra>",
+						name: "positions"
+					}
+				];
+
+				return { name: String(y), data: traces, layout: { xaxis: { range: [axisMin, axisMax] }, yaxis: { range: [axisMin, axisMax], scaleanchor: "x", scaleratio: 1 } } };
+			});
+
+			return { frames };
+		}
+
+		function renderPositionRadiusPlot() {
+			const { frames } = buildPositionRadiusFrames();
+			const years = DATA.meta.years;
+			const axisMin = Number(document.getElementById("posRAxisMin").value);
+			const axisMax = Number(document.getElementById("posRAxisMax").value);
+			const viewMode = posRViewMode || "xy";
+			const layout = {
+				width: 800,
+				height: 800,
+				autosize: false,
+				margin: { t: 30, r: 10, l: 50, b: 60 },
+				title: `Latent positions + radius (year: ${years[0]})`,
+				...getLayoutTheme(),
+				xaxis: { title: viewMode === "zy" ? "z" : "x", range: [axisMin, axisMax] },
+				yaxis: { 
+					title: viewMode === "xz" ? "z" : viewMode === "zy" ? "y" : "y", 
+					range: [axisMin, axisMax],
+					scaleanchor: "x",
+					scaleratio: 1
+				},
+				sliders: [{
+					active: 0,
+					steps: years.map((y, i) => ({
+						label: String(y),
+						method: "animate",
+						args: [[String(y)], { mode: "immediate", transition: { duration: 0 }, frame: { duration: 0, redraw: true } }]
+					}))
+				}]
+			};
+
+			Plotly.newPlot("positionRadiusPlot", frames[0].data, layout).then(gd => {
+				Plotly.addFrames(gd, frames);
+			});
+		}
+
+		function renderGlobalPlot() {
+			const ci = document.getElementById("ciGlobal").value;
+			const g = DATA.plots.global_indices;
+			const years = g.years;
+
+			const baseLayout = (title) => ({
+				margin: { t: 30, r: 10, l: 50, b: 60 },
+				title,
+				...getLayoutTheme()
+			});
+
+			const gciTraces = [
+				{ type: "scatter", mode: "lines", name: "GCI In", x: years, y: g.hhi_in_mean, line: { color: "#4e79a7" } },
+				{ type: "scatter", mode: "lines", name: "GCI Out", x: years, y: g.hhi_out_mean, line: { color: "#f28e2b" } },
+			];
+			["hhi_in", "hhi_out"].forEach((k, i) => {
+				gciTraces.push({ type: "scatter", mode: "lines", x: years, y: g[`${k}_ci${ci}_lo`], line: { width: 0 }, showlegend: false, hoverinfo: "skip" });
+				gciTraces.push({ type: "scatter", mode: "lines", x: years, y: g[`${k}_ci${ci}_hi`], line: { width: 0 }, fill: "tonexty", fillcolor: (i === 0 ? "#4e79a7" : "#f28e2b") + "33", showlegend: false, hoverinfo: "skip" });
+			});
+			Plotly.newPlot("globalGciPlot", gciTraces, baseLayout(`GCI (CI ${ci}%)`), {responsive: true});
+
+			const dmTraces = [
+				{ type: "scatter", mode: "lines", name: "Mean Distance", x: years, y: g.distance_mean_mean, line: { color: "#59a14f" } },
+				{ type: "scatter", mode: "lines", x: years, y: g[`distance_mean_ci${ci}_lo`], line: { width: 0 }, showlegend: false, hoverinfo: "skip" },
+				{ type: "scatter", mode: "lines", x: years, y: g[`distance_mean_ci${ci}_hi`], line: { width: 0 }, fill: "tonexty", fillcolor: "#59a14f33", showlegend: false, hoverinfo: "skip" }
+			];
+			Plotly.newPlot("globalDistanceMeanPlot", dmTraces, baseLayout(`Mean distance (CI ${ci}%)`), {responsive: true});
+
+			const dvTraces = [
+				{ type: "scatter", mode: "lines", name: "Distance Var", x: years, y: g.distance_var_mean, line: { color: "#e15759" } },
+				{ type: "scatter", mode: "lines", x: years, y: g[`distance_var_ci${ci}_lo`], line: { width: 0 }, showlegend: false, hoverinfo: "skip" },
+				{ type: "scatter", mode: "lines", x: years, y: g[`distance_var_ci${ci}_hi`], line: { width: 0 }, fill: "tonexty", fillcolor: "#e1575933", showlegend: false, hoverinfo: "skip" }
+			];
+			Plotly.newPlot("globalDistanceVarPlot", dvTraces, baseLayout(`Distance variance (CI ${ci}%)`), {responsive: true});
+		}
+
+		function renderLocalPlots() {
+			const ci = document.getElementById("ciGlobal").value;
+			const rows = DATA.dlsm.local;
+			const years = DATA.meta.years;
+
+			const plotMetric = (metric, title, targetId) => {
+				const traces = [];
+				[...selected].forEach(c => {
+					const vals = years.map(y => {
+						const r = rows.find(d => d.year === y && d.country === c);
+						return r ? r[`${metric}_mean`] : null;
+					});
+					traces.push({
+						type: "scatter",
+						mode: "lines",
+						name: c,
+						x: years,
+						y: vals,
+						line: { color: colorMap.get(c) },
+						hovertemplate: `country=${c}<br>year=%{x}<br>${metric}=%{y:.3f}<extra></extra>`
+					});
+
+					const lo = years.map(y => {
+						const r = rows.find(d => d.year === y && d.country === c);
+						return r ? r[`${metric}_ci${ci}_lo`] : null;
+					});
+					const hi = years.map(y => {
+						const r = rows.find(d => d.year === y && d.country === c);
+						return r ? r[`${metric}_ci${ci}_hi`] : null;
+					});
+					traces.push({ type: "scatter", mode: "lines", x: years, y: lo, line: { width: 0 }, showlegend: false, hoverinfo: "skip" });
+					traces.push({ type: "scatter", mode: "lines", x: years, y: hi, line: { width: 0 }, fill: "tonexty", fillcolor: (colorMap.get(c) || "#999") + "22", showlegend: false, hoverinfo: "skip" });
+				});
+
+				Plotly.newPlot(targetId, traces, {
+					margin: { t: 30, r: 10, l: 50, b: 60 },
+					title: `${title} (CI ${ci}%)`,
+					...getLayoutTheme()
+				}, {responsive: true});
+			};
+
+			plotMetric("bdi_out", "BDI Out", "localBdiOutPlot");
+			plotMetric("bdi_in", "BDI In", "localBdiInPlot");
+			plotMetric("gii", "LII", "localGiiPlot");
+			plotMetric("reach_in", "Radius Inclusion In", "localReachInPlot");
+			plotMetric("reach_out", "Radius Inclusion Out", "localReachOutPlot");
+			plotMetric("dbar", "Mean Distance (Local)", "localDbarPlot");
+		}
+
+		function renderAllPlots() {
+			if (!DATA) return;
+			renderSelectedPills();
+			renderTradeStacked();
+			renderRadiusEvolution();
+			renderRadiusStacked();
+			renderPositionPlot();
+			renderPositionRadiusPlot();
+			renderGlobalPlot();
+			renderLocalPlots();
+		}
+
+		function resetPositionView() {
+			const gd = document.getElementById("positionPlot");
+			if (!gd) return;
+			lastCamera = null;
+			Plotly.relayout(gd, { "scene.camera": null });
+		}
+
+		function setPositionView(axis) {
+			const gd = document.getElementById("positionPlot");
+			if (!gd) return;
+			const is3D = DATA && DATA.meta && DATA.meta.latent_dim >= 3;
+			if (!is3D) return;
+			let camera = null;
+			if (axis === "xy") camera = { eye: { x: 0, y: 0, z: 2 } };
+			if (axis === "xz") camera = { eye: { x: 0, y: 2, z: 0 } };
+			if (axis === "yz") camera = { eye: { x: 2, y: 0, z: 0 } };
+			lastCamera = camera;
+			Plotly.relayout(gd, { "scene.camera": camera });
+		}
+
+		function bindControls() {
+			document.getElementById("tradeMetric").onchange = renderTradeStacked;
+			document.getElementById("radiusScope").onchange = renderRadiusEvolution;
+			document.getElementById("radiusShowCi").onchange = renderRadiusEvolution;
+			document.getElementById("radiusCi").onchange = renderRadiusEvolution;
+			document.getElementById("radiusStackMode").onchange = renderRadiusStacked;
+			document.getElementById("radiusStackColorMode").onchange = renderRadiusStacked;
+			document.getElementById("radiusStackType").onchange = renderRadiusStacked;
+			document.getElementById("posHighlightSelected").onchange = renderPositionPlot;
+			document.getElementById("posOnlySelected").onchange = renderPositionPlot;
+			document.getElementById("posLabelSelectedOnly").onchange = renderPositionPlot;
+			document.getElementById("posRadiusSize").onchange = renderPositionPlot;
+			document.getElementById("posRadiusScale").oninput = () => renderPositionPlot();
+			document.getElementById("posPointSize").oninput = () => renderPositionPlot();
+			document.getElementById("posAxisMin").onchange = renderPositionPlot;
+			document.getElementById("posAxisMax").onchange = renderPositionPlot;
+			document.getElementById("posViewReset").onclick = () => resetPositionView();
+			document.getElementById("posViewXY").onclick = () => setPositionView("xy");
+			document.getElementById("posViewXZ").onclick = () => setPositionView("xz");
+			document.getElementById("posViewYZ").onclick = () => setPositionView("yz");
+
+			document.getElementById("posRHighlightSelected").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRRadiusScope").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRLabelSelectedOnly").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRRadiusMode").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRRadiusScale").oninput = () => renderPositionRadiusPlot();
+			document.getElementById("posRPointSize").oninput = () => renderPositionRadiusPlot();
+			document.getElementById("posRAxisMin").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRAxisMax").onchange = renderPositionRadiusPlot;
+			document.getElementById("posRViewReset").onclick = () => { posRViewMode = "xy"; renderPositionRadiusPlot(); };
+			document.getElementById("posRViewXY").onclick = () => { posRViewMode = "xy"; renderPositionRadiusPlot(); };
+			document.getElementById("posRViewXZ").onclick = () => { posRViewMode = "xz"; renderPositionRadiusPlot(); };
+			document.getElementById("posRViewZY").onclick = () => { posRViewMode = "zy"; renderPositionRadiusPlot(); };
+			document.getElementById("globalCi").onchange = renderGlobalPlot;
+			document.getElementById("localCi").onchange = renderLocalPlots;
+		}
+
+		async function loadJsonFile(filename) {
+			setStatus(`Loading ${filename}...`);
+			try {
+				const response = await fetch(JSON_BASE_PATH + filename);
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+				}
+				DATA = await response.json();
+				
+				const ci = String(document.getElementById("ciGlobal").value);
+				document.getElementById("radiusCi").value = ci;
+				document.getElementById("globalCi").value = ci;
+				document.getElementById("localCi").value = ci;
+				
+				selected.clear();
+				seedDefaultSelection();
+				buildColorMap(DATA.meta.countries);
+				renderJsonPanels();
+				renderCountrySelector();
+				
+				const metrics = ["gtrade", "gvc", "gvcbp", "gvcfp", "gvcmix"];
+				document.getElementById("tradeMetric").innerHTML = metrics.map(m => `<option value="${m}">${m}</option>`).join("");
+				document.getElementById("tradeMetric").value = metrics[0];
+				
+				if (!DATA.dlsm.continent_palette) {
+					DATA.dlsm.continent_palette = {
+						"Europe": "#1f77b4",
+						"Asia": "#d62728",
+						"Americas": "#2ca02c",
+						"Oceania": "#ff7f0e",
+						"Africa": "#9467bd",
+						"Other": "#7f7f7f",
+						"Unknown": "#7f7f7f"
+					};
+				}
+				
+				bindControls();
+				renderAllPlots();
+				setStatus(`Loaded: ${filename}`);
+			} catch (error) {
+				setStatus(`Error loading ${filename}: ${error.message}`);
+				console.error(error);
+			}
+		}
+
+		function populateDatasetDropdown() {
+			const select = document.getElementById("datasetSelect");
+			select.innerHTML = JSON_FILES.map(f => `<option value="${f}">${f.replace("visualization_data_", "").replace(".json", "")}</option>`).join("");
+		}
+
+		async function init() {
+			// 먼저 JSON 파일 목록 로드
+			await loadJsonFileList();
+			
+			if (JSON_FILES.length === 0) {
+				setStatus("Error: No JSON files found in json_files.txt");
+				return;
+			}
+			
+			populateDatasetDropdown();
+			
+			// 드롭다운 변경 시 자동 로드
+			document.getElementById("datasetSelect").addEventListener("change", async () => {
+				const filename = document.getElementById("datasetSelect").value;
+				await loadJsonFile(filename);
+			});
+			
+			// Load 버튼 클릭
+			document.getElementById("btnLoad").addEventListener("click", async () => {
+				const filename = document.getElementById("datasetSelect").value;
+				await loadJsonFile(filename);
+			});
+			
+			// 첫 번째 파일 자동 로드
+			if (JSON_FILES.length > 0) {
+				await loadJsonFile(JSON_FILES[0]);
+			}
+		}
+
+		function toRgba(hex, alpha) {
+			if (!hex || !hex.startsWith("#")) return hex;
+			const h = hex.replace("#", "");
+			const bigint = parseInt(h.length === 3 ? h.split("").map(c => c + c).join("") : h, 16);
+			const r = (bigint >> 16) & 255;
+			const g = (bigint >> 8) & 255;
+			const b = bigint & 255;
+			return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+		}
+
+		document.getElementById("ciGlobal").addEventListener("change", () => {
+			const ci = String(document.getElementById("ciGlobal").value);
+			document.getElementById("radiusCi").value = ci;
+			document.getElementById("globalCi").value = ci;
+			document.getElementById("localCi").value = ci;
+			if (DATA) renderAllPlots();
+		});
+
+		document.getElementById("themeToggle").addEventListener("click", () => {
+			const isDark = document.body.dataset.theme !== "light";
+			if (isDark) {
+				document.body.dataset.theme = "light";
+				document.documentElement.style.setProperty("--bg", "#f6f7fb");
+				document.documentElement.style.setProperty("--panel", "#ffffff");
+				document.documentElement.style.setProperty("--text", "#111827");
+				document.documentElement.style.setProperty("--muted", "#6b7280");
+				document.documentElement.style.setProperty("--accent", "#2563eb");
+				document.documentElement.style.setProperty("--border", "#e5e7eb");
+				document.documentElement.style.setProperty("--header-bg", "#ffffff");
+				document.documentElement.style.setProperty("--input-bg", "#ffffff");
+				document.documentElement.style.setProperty("--secondary-bg", "#f3f4f6");
+				document.documentElement.style.setProperty("--details-bg", "#f9fafb");
+				document.documentElement.style.setProperty("--pill-bg", "#e0e7ff");
+				document.documentElement.style.setProperty("--pill-text", "#1e3a8a");
+				document.documentElement.style.setProperty("--pre-text", "#111827");
+				document.getElementById("themeToggle").textContent = "다크 모드";
+			} else {
+				document.body.dataset.theme = "dark";
+				document.documentElement.style.setProperty("--bg", "#0f1115");
+				document.documentElement.style.setProperty("--panel", "#171a21");
+				document.documentElement.style.setProperty("--text", "#e6e6e6");
+				document.documentElement.style.setProperty("--muted", "#9aa0a6");
+				document.documentElement.style.setProperty("--accent", "#4da3ff");
+				document.documentElement.style.setProperty("--border", "#2a2f3a");
+				document.documentElement.style.setProperty("--header-bg", "#0c0e12");
+				document.documentElement.style.setProperty("--input-bg", "#10131a");
+				document.documentElement.style.setProperty("--secondary-bg", "#2a2f3a");
+				document.documentElement.style.setProperty("--details-bg", "#12151c");
+				document.documentElement.style.setProperty("--pill-bg", "#273145");
+				document.documentElement.style.setProperty("--pill-text", "#cfe6ff");
+				document.documentElement.style.setProperty("--pre-text", "#d7d7d7");
+				document.getElementById("themeToggle").textContent = "라이트 모드";
+			}
+			if (DATA) renderAllPlots();
+		});
+
+		init();
+	</script>
+</body>
+</html>
